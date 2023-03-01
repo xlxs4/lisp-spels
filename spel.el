@@ -1,13 +1,44 @@
-;;; spel.el -*- lexical-binding: t; -*-
-;;
-;; This file is not part of GNU Emacs.
-;;
+;;; spel.el --- A simple text-based adventure game.
+
+;; Author: Orestis Ousoultzoglou <orousoultzoglou@gmail.com>
+;; Keywords: emacs lisp tutorial games
+
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation; either version 2 of
+;; the License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be
+;; useful, but WITHOUT ANY WARRANTY; without even the implied
+;; warranty of MERCHANTNABILITY or FITNESS FOR A PARTICULAR
+;; PURPOSE. See the GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public
+;; License along with this program; if not, write to the Free
+;; Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+;; MA 02111-1307 USA
+
+;;; Disclaimer:
+;; This is just an extension of, and therefore
+;; heavily based on, wizard-adventure-emacs.el
+
+;; Copyright (C) 2007 Conrad Barski
+
+;; Author: Conrad Barski <drcode@gmail.com>
+;; Editor: James A. Webb <uberkoder@gmail.com>
+;; Created: 16 September 2007
+;; Version: 1.0
+
 ;;; Commentary:
-;;
-;;
-;;
+;; This is a simple text adventure game meant
+;; as nothing more than a fun means to practice
+;; one's elisp-fu.
+
 ;;; Code:
+
 (require 'cl)
+
+(setq eval-expression-print-length nil)
 
 (setq objects '(whiskey-bottle bucket frog chain))
 
@@ -63,20 +94,6 @@
     (cond (next (setf location (third next)) (look))
           (t '(you cannot go that way -)))))
 
-(defun pickup-object (object)
-  (cond ((is-at object location object-locations)
-         (push (list object 'body) object-locations)
-         `(you are now carrying the ,object))
-        (t '(you cannot get that.))))
-
-(defun inventory ()
-  (remove-if-not (lambda (x)
-                   (is-at x 'body object-locations))
-                 objects))
-
-(defun have-object (object)
-  (member object (inventory)))
-
 ; SPEL: Semantic Program Enhancement Logic
 ; Yes, it is just a macro to have defmacro be named defspel
 ; I like casting spells. See this for more:
@@ -89,11 +106,56 @@
 (defspel walk (direction)
   `(walk-direction ',direction))
 
+(defun pickup-object (object)
+  (cond ((is-at object location object-locations)
+         (push (list object 'body) object-locations)
+         `(you are now carrying the ,object))
+        (t '(you cannot get that.))))
+
 (defspel pickup (object)
   `(pickup-object ',object))
 
-(defspel have (object)
-  `(have-object ',object))
+(defun inventory ()
+  (remove-if-not (lambda (x)
+                   (is-at x 'body object-locations))
+                 objects))
 
-(provide 'spel)
+(defun have (object)
+  (member object (inventory)))
+
+(setq chain-welded nil)
+
+(setq bucket-filled nil)
+
+; A SPEL can cast another SPEL.
+(defspel game-action (command subj obj place &rest rest)
+  `(defspel ,command (subject object)
+     `(cond ((and (eq location ',',place)
+                  (eq ',subject ',',subj)
+                  (eq ',object ',',obj)
+                  (have ',',subj))
+             ,@',rest)
+            (t '(i cannot ,',command like that -)))))
+
+(game-action weld chain bucket attic
+  (cond ((and (have 'bucket) (setq chain-welded 't))
+         '(the chain is now securely welded to the bucket -))
+        (t '(you do not have a bucket -))))
+
+(game-action dunk bucket well garden
+  (cond (chain-welded (setq bucket-filled 't)
+                       '(the bucket is now full of water))
+        (t '(the water level is too low to reach -))))
+
+(game-action splash bucket wizard living-room
+  (cond ((not bucket-filled) '(the bucket has nothing in it -))
+        ((have 'frog) '(the wizard awakens and sees that you stole
+                            his frog -
+                            he is so upset he banishes you to the
+                            netherworlds - you lose! the end -))
+        (t '(the wizard awakens from his slumber and greets you
+                 warmly -
+                 he hands you the magic low-carb donut - you win!
+                 the end -))))
+
 ;;; spel.el ends here
