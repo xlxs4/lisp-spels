@@ -58,5 +58,42 @@
           (describe-paths location map)
           (describe-floor location objects object-locations)))
 
+(defun walk-direction (direction)
+  (let ((next (assoc direction (cddr (assoc location map)))))
+    (cond (next (setf location (third next)) (look))
+          (t '(you cannot go that way -)))))
+
+(defun pickup-object (object)
+  (cond ((is-at object location object-locations)
+         (push (list object 'body) object-locations)
+         `(you are now carrying the ,object))
+        (t '(you cannot get that.))))
+
+(defun inventory ()
+  (remove-if-not (lambda (x)
+                   (is-at x 'body object-locations))
+                 objects))
+
+(defun have-object (object)
+  (member object (inventory)))
+
+; SPEL: Semantic Program Enhancement Logic
+; Yes, it is just a macro to have defmacro be named defspel
+; I like casting spells. See this for more:
+; https://lisperati.com/casting-spells-emacs/html/
+; <continued> /casting-spells-emacs-33.html
+(defmacro defspel (&rest rest) `(defmacro ,@rest))
+
+; walk is walk-direction, and direction, e.g. west is 'west
+; so (walk west) becomes (walk-direction 'west)
+(defspel walk (direction)
+  `(walk-direction ',direction))
+
+(defspel pickup (object)
+  `(pickup-object ',object))
+
+(defspel have (object)
+  `(have-object ',object))
+
 (provide 'spel)
 ;;; spel.el ends here
