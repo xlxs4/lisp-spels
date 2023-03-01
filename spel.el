@@ -32,5 +32,31 @@
 
 (setq location 'living-room)
 
+(defun describe-location (location map)
+  (second (assoc location map)))
+
+(defun describe-path (path)
+  `(there is a ,(second path) going ,(first path) from here -))
+
+(defun describe-paths (location map)
+  (apply #'append
+         (mapcar #'describe-path
+                 (cddr (assoc location map)))))
+
+(defun is-at (obj loc obj-loc)
+  (eq (second (assoc obj obj-loc)) loc))
+
+(defun describe-floor (loc objs obj-loc)
+  (apply #'append (mapcar (lambda (x)
+                            `(you see a ,x on the floor -))
+                          (remove-if-not (lambda (x)
+                                           (is-at x loc obj-loc))
+                                         objs))))
+
+(defun look ()
+  (append (describe-location location map)
+          (describe-paths location map)
+          (describe-floor location objects object-locations)))
+
 (provide 'spel)
 ;;; spel.el ends here
