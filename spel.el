@@ -40,7 +40,28 @@
 
 (setq eval-expression-print-length nil)
 
-(setq objects '(whiskey-bottle bucket frog chain))
+(setq help '((look
+                  (you can take a gander at where you are -
+                       determine where you can head towards -
+                       see if there are any objects on the floor))
+                 (walk
+                  (you can walk towards a direction -
+                       the world is your oyster))
+                 (pickup
+                  (you can pick an object from the floor -
+                       to carry it with you wherever you go))
+                 (inventory
+                  (you can determine what you are carrying -
+                       it would be silly if you could not))
+                 (dunk
+                  (you can dunk something in something else -
+                       no this is not basketball time))
+                 (weld
+                  (you can weld something and something else together -
+                       there is an engineer hidden in every one of us))
+                 (splash
+                  (you can splash something on something -
+                       does not have to be summer season))))
 
 (setq map '((living-room
              (you are in the living room of a wizards house -
@@ -56,18 +77,28 @@
                   there is a giant welding torch in the corner -)
              (downstairs stairway living-room))))
 
+(setq location 'living-room)
+(setq objects '(whiskey-bottle bucket frog chain))
 (setq object-locations '((whiskey-bottle living-room)
                          (bucket living-room)
                          (chain garden)
                          (frog garden)))
 
-(setq location 'living-room)
+(setq chain-welded nil)
+(setq bucket-filled nil)
+
+(defun help ()
+  `(these are your spells: ,(mapcar #'car help)
+    you can ask me to (explain spell)))
+
+(defun describe-spell (spell help)
+  (cadr (assoc spell help)))
 
 (defun describe-location (location map)
-  (second (assoc location map)))
+  (cadr (assoc location map)))
 
 (defun describe-path (path)
-  `(there is a ,(second path) going ,(first path) from here -))
+  `(there is a ,(cadr path) going ,(car path) from here -))
 
 (defun describe-paths (location map)
   (apply #'append
@@ -75,7 +106,7 @@
                  (cddr (assoc location map)))))
 
 (defun is-at (obj loc obj-loc)
-  (eq (second (assoc obj obj-loc)) loc))
+  (eq (cadr (assoc obj obj-loc)) loc))
 
 (defun describe-floor (loc objs obj-loc)
   (apply #'append (mapcar (lambda (x)
@@ -101,6 +132,9 @@
 ; <continued> /casting-spells-emacs-33.html
 (defmacro defspel (&rest rest) `(defmacro ,@rest))
 
+(defspel explain (spell)
+  `(describe-spell ',spell help))
+
 ; walk is walk-direction, and direction, e.g. west is 'west
 ; so (walk west) becomes (walk-direction 'west)
 (defspel walk (direction)
@@ -123,10 +157,6 @@
 (defun have (object)
   (member object (inventory)))
 
-(setq chain-welded nil)
-
-(setq bucket-filled nil)
-
 ; A SPEL can cast another SPEL.
 (defspel game-action (command subj obj place &rest rest)
   `(defspel ,command (subject object)
@@ -138,24 +168,25 @@
             (t '(i cannot ,',command like that -)))))
 
 (game-action weld chain bucket attic
-  (cond ((and (have 'bucket) (setq chain-welded 't))
-         '(the chain is now securely welded to the bucket -))
-        (t '(you do not have a bucket -))))
+             (cond ((and (have 'bucket) (setq chain-welded 't))
+                    '(the chain is now securely welded to the bucket -))
+                   (t '(you do not have a bucket -))))
 
 (game-action dunk bucket well garden
-  (cond (chain-welded (setq bucket-filled 't)
-                       '(the bucket is now full of water))
-        (t '(the water level is too low to reach -))))
+             (cond (chain-welded (setq bucket-filled 't)
+                                 '(the bucket is now full of water))
+                   (t '(the water level is too low to reach -))))
 
 (game-action splash bucket wizard living-room
-  (cond ((not bucket-filled) '(the bucket has nothing in it -))
-        ((have 'frog) '(the wizard awakens and sees that you stole
-                            his frog -
-                            he is so upset he banishes you to the
-                            netherworlds - you lose! the end -))
-        (t '(the wizard awakens from his slumber and greets you
-                 warmly -
-                 he hands you the magic low-carb donut - you win!
-                 the end -))))
+             (cond ((not bucket-filled)
+                    '(the bucket has nothing in it -))
+                   ((have 'frog)
+                    '(the wizard awakens and sees that you stole
+                        his frog -
+                        he is so upset he banishes you to the
+                        netherworlds - you lose! the end -))
+                   (t
+                    '(the wizard awakens from his slumber and greets you warmly -
+                        he hands you the magic low-carb donut - you win! the end -))))
 
 ;;; spel.el ends here
